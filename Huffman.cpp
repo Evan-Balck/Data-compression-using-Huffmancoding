@@ -22,6 +22,9 @@ struct HuffmanTree {
 
 struct Compare {
 	bool operator()(HuffmanTree* a, HuffmanTree* b) {
+		if (a->freq == b->freq) {
+			return a > b;
+		}
 		return a->freq > b->freq;
 	}
 };
@@ -61,10 +64,12 @@ void buildCodes(HuffmanTree* root, string code, unordered_map<char, string>& huf
 	buildCodes(root->right, code + "1", huffmanCodes);
 }
 
+
+
 string compressString(string& input, unordered_map<char, string>& huffmanCodes) {
 	string compressed;
 	for (char c : input) {
-		compressed += huffmanCodes.at(c);
+		compressed += huffmanCodes[c];
 	}
 	return compressed;
 }
@@ -89,6 +94,75 @@ string decompressString(const string& compressed, HuffmanTree* root) {
 
 	return decompressed;
 }
+
+
+
+void stringToBinaryFile(const string& inputString, const string& filename) {
+	ofstream binaryFile(filename, ios::binary);
+
+	if (!binaryFile) {
+		cerr << "Error opening the binary file." << endl;
+		return;
+	}
+
+	unsigned char currentByte = 0;
+	int bitCount = 0;
+
+	for (char c : inputString) {
+		if (c == '1') {
+			currentByte |= (1 << (7 - bitCount));
+		}
+
+		bitCount++;
+
+		if (bitCount == 8) {
+			binaryFile.write(reinterpret_cast<const char*>(&currentByte), 1);
+			bitCount = 0;
+			currentByte = 0;
+		}
+	}
+
+	if (bitCount > 0) {
+		binaryFile.write(reinterpret_cast<const char*>(&currentByte), 1);
+	}
+
+	binaryFile.close();
+	cout << "Binary data written to " << filename << " successfully." << endl;
+}
+
+string binaryFileToString(const string& filename) {
+	ifstream binaryFile(filename, ios::binary);
+
+	if (!binaryFile) {
+		cerr << "Error opening the binary file." << endl;
+		return "";
+	}
+
+	string binaryString;
+	unsigned char currentByte;
+
+	while (binaryFile.read(reinterpret_cast<char*>(&currentByte), 1)) {
+		bitset<8> bits(currentByte);
+		binaryString += bits.to_string();
+	}
+
+	binaryFile.close();
+	return binaryString;
+}
+
+void stringToFile(const string& dataString, const string& filename) {
+	ofstream outputFile(filename);
+
+	if (!outputFile) {
+		cerr << "Error opening the output file." << endl;
+		return;
+	}
+
+	outputFile << dataString;
+	outputFile.close();
+	cout << "Data written to " << filename << " successfully." << endl;
+}
+
 
 
 
@@ -119,16 +193,20 @@ int main() {
 	unordered_map<char, string> huffmanCodes;
 	buildCodes(root, "", huffmanCodes);
 
-	for (const auto& i : huffmanCodes) {
+	/*for (const auto& i : huffmanCodes) {
 		cout << i.first << " " << i.second << endl;
-	}
+	}*/
 
 	string compressed = compressString(input, huffmanCodes);
 
-	string decompressed = decompressString(compressed, root);
-	cout << "Decompressed Output:" << endl;
-	cout << decompressed << endl;
 
+
+	stringToBinaryFile(compressed, "Compressed.bin");
+	string binaryString = binaryFileToString("Compressed.bin");
+
+	string decompressed = decompressString(binaryString, root);
+
+	stringToFile(decompressed, "decopressed.txt");
 
 	delete root;
 	return 0;
